@@ -6,12 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', function () {
@@ -68,3 +63,4 @@ use App\Http\Controllers\Admin\ReportController;
 Route::middleware(['auth', 'verified', 'role:Admin'])->prefix('admin')->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
 });
+
