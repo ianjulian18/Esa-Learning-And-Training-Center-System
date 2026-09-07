@@ -57,3 +57,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 
+
+use App\Http\Controllers\Learner\CertificateController;
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/my-certificates', [CertificateController::class, 'index'])->name('learner.certificates');
+    Route::get('/certificates/{certificate}/download', [CertificateController::class, 'download'])->name('learner.certificates.download');
+});
+
+use App\Http\Controllers\Admin\ReportController;
+Route::middleware(['auth', 'verified', 'role:Admin'])->prefix('admin')->group(function () {
+    Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
+});

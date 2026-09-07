@@ -195,8 +195,24 @@ class LearnerController extends Controller
                 'status' => 'COMPLETED',
                 'completed_at' => now()
             ]);
+
+            // Auto-generate certificate
+            if (!\App\Models\Certificate::where('user_id', $user->id)->where('course_id', $course->id)->exists()) {
+                \App\Models\Certificate::create([
+                    'certificate_number' => 'CERT-' . date('Ymd') . '-' . strtoupper(uniqid()),
+                    'user_id' => $user->id,
+                    'course_id' => $course->id,
+                    'issue_date' => now(),
+                    'status' => 'VALID'
+                ]);
+                
+                // Notify user
+                $user->notify(new \App\Notifications\CourseCompleted($course));
+            }
         }
 
         return redirect()->route('learner.assessment', $course->id)->with('success', 'Assessment submitted successfully! Score: ' . $finalScore);
     }
 }
+
+
