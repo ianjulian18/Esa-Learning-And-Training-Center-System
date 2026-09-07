@@ -47,9 +47,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 use App\Http\Controllers\LearnerController;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/my-courses', [LearnerController::class, 'myCourses'])->name('learner.courses');
-    Route::get('/learn/{id}', [LearnerController::class, 'learn'])->name('learner.learn');
-    Route::get('/assessment/{id}', [LearnerController::class, 'assessment'])->name('learner.assessment');
+    Route::post('/courses/{course}/enroll', [LearnerController::class, 'enroll'])->name('learner.enroll');
+    Route::get('/courses/{course}/learn', [LearnerController::class, 'learn'])->name('learner.learn');
+    Route::post('/courses/{course}/progress', [LearnerController::class, 'updateProgress'])->name('learner.progress');
+    Route::get('/courses/{course}/assessment', [LearnerController::class, 'assessment'])->name('learner.assessment');
+    Route::post('/courses/{course}/assessment', [LearnerController::class, 'submitAssessment'])->name('learner.assessment.submit');
 });
+
 
 
 
