@@ -1,40 +1,36 @@
 <?php
-
 namespace App\Http\Controllers\Learner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
-use App\Models\Course;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class CertificateController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
-        $certificates = Certificate::with('course')->where('user_id', $user->id)->get();
-
+        $certificates = Certificate::with('course')
+            ->where('user_id', $request->user()->id)
+            ->get();
+            
         return Inertia::render('Learner/MyCertificates', [
             'certificates' => $certificates
         ]);
     }
 
-    public function download(Certificate $certificate)
+    public function download(Request $request, Certificate $certificate)
     {
-        // Ensure user owns certificate
-        if ($certificate->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized action.');
+        if ($certificate->user_id !== $request->user()->id) {
+            abort(403);
+        }
+        
+        $path = $certificate->file_path;
+        if (!Storage::disk('public')->exists($path)) {
+            abort(404, 'Certificate file not found.');
         }
 
-        $certificate->load('course', 'user');
-
-        $pdf = Pdf::loadView('pdf.certificate', [
-            'certificate' => $certificate
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download('Certificate_' . $certificate->certificate_number . '.pdf');
+        return Storage::disk('public')->download($path);
     }
 }

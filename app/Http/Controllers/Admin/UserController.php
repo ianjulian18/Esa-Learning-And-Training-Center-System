@@ -1,100 +1,72 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Principal;
+use App\Models\Position;
+use App\Models\Department;
+use App\Models\EmploymentHistory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
+use App\Services\AssignmentEngine;
 
 class UserController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles')->orderBy('created_at', 'desc')->paginate(10);
         return Inertia::render('Admin/Users/Index', [
-            'users' => $users,
-            'flash' => request()->session()->get('flash')
+            'users' => User::with('currentEmployment.principal', 'currentEmployment.position', 'roles')->get()
         ]);
     }
 
     public function create()
     {
-        $roles = Role::all();
         return Inertia::render('Admin/Users/Create', [
-            'roles' => $roles
+            'principals' => Principal::all(),
+            'positions' => Position::all(),
+            'departments' => Department::all(),
         ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
+            'nik' => 'required|string|unique:users',
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'nik' => 'required|string|max:50|unique:users',
-            'role' => 'required|exists:roles,name',
-            'status' => 'required|in:ACTIVE,INACTIVE'
+            'email' => 'required|string|email|unique:users',
+            'password' => 'required|string|min:8',
+            'nip' => 'required|string',
+            'principal_id' => 'required|exists:principals,id',
+            'position_id' => 'required|exists:positions,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'start_date' => 'required|date',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'nik' => $request->nik,
-            'status' => $request->status,
-            'password' => Hash::make('password123'),
+            'nik' => $validated['nik'],
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
         ]);
 
-        $user->assignRole($request->role);
+        $user->assignRole('learner');
 
-        return redirect()->route('admin.users.index')->with('success', 'User created successfully. Default password is password123');
-    }
-
-    public function edit(User $user)
-    {
-        $roles = Role::all();
-        $user->load('roles');
-        
-        return Inertia::render('Admin/Users/Edit', [
-            'user' => $user,
-            'roles' => $roles
-        ]);
-    }
-
-    public function update(Request $request, User $user)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'nik' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|exists:roles,name',
-            'status' => 'required|in:ACTIVE,INACTIVE'
+        EmploymentHistory::create([
+            'user_id' => $user->id,
+            'nip' => $validated['nip'],
+            'principal_id' => $validated['principal_id'],
+            'position_id' => $validated['position_id'],
+            'department_id' => $validated['department_id'],
+            'start_date' => $validated['start_date'],
+            'status' => 'ACTIVE',
+            'source' => 'MANUAL'
         ]);
 
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'nik' => $request->nik,
-            'status' => $request->status,
-        ]);
-
-        // Sync role (since a user should only have 1 role in this LMS)
-        $user->syncRoles([$request->role]);
-
-        return redirect()->route('admin.users.index')->with('success', 'User updated successfully.');
-    }
-
-    public function destroy(User $user)
-    {
-        // Prevent deleting yourself
-        if (auth()->id() === $user->id) {
-            return redirect()->back()->with('error', 'You cannot delete yourself.');
-        }
-        
-        $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully.');
+        AssignmentEngine::evaluateUser($user);
+        return redirect()->route('admin.users.index')->with('success', 'User and Employment created.');
     }
 }
 

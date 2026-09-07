@@ -13,7 +13,7 @@ import DropdownLink from '@/Components/DropdownLink.vue';
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="shrink-0 flex items-center">
-                            <Link :href="route('dashboard')">
+                            <Link :href="route('learner.courses')">
                                 <ApplicationLogo class="block h-9 w-auto fill-current text-primary-600" />
                             </Link>
                         </div>
@@ -53,3 +53,6 @@ import DropdownLink from '@/Components/DropdownLink.vue';
         </main>
     </div>
 </template>
+
+
+

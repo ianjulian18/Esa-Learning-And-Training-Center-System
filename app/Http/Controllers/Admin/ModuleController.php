@@ -1,47 +1,31 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
 use App\Models\Module;
+use App\Models\Course;
 use Illuminate\Http\Request;
 
 class ModuleController extends Controller
 {
     public function store(Request $request, Course $course)
     {
-        $request->validate([
+        $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'order' => 'required|integer'
         ]);
-
-        $orderIndex = $course->modules()->max('order_index') + 1;
 
         $course->modules()->create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'order_index' => $orderIndex,
+            'title' => $validated['title'],
+            'order' => $validated['order']
         ]);
 
-        return back()->with('success', 'Module added successfully.');
-    }
-
-    public function update(Request $request, Course $course, Module $module)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-        ]);
-
-        $module->update($request->only('title', 'description'));
-
-        return back()->with('success', 'Module updated successfully.');
+        return redirect()->back()->with('success', 'Module added.');
     }
 
     public function destroy(Course $course, Module $module)
     {
         $module->delete();
-        return back()->with('success', 'Module deleted successfully.');
+        return redirect()->back()->with('success', 'Module deleted.');
     }
 }

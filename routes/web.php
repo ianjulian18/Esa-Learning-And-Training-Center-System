@@ -1,66 +1,82 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\CourseController;
+use App\Http\Controllers\Admin\AssignmentRuleController;
+use App\Http\Controllers\Admin\QuestionBankController;
+use App\Http\Controllers\Admin\AssessmentController;
+use App\Http\Controllers\Admin\ImportController;
+use App\Http\Controllers\Admin\ModuleController;
+use App\Http\Controllers\Admin\LessonController;
+use App\Http\Controllers\Learner\CourseController as LearnerCourseController;
+use App\Http\Controllers\Learner\ProgressController;
+use App\Http\Controllers\Learner\AssessmentController as LearnerAssessmentController;
+use App\Http\Controllers\Learner\CertificateController as LearnerCertificateController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\PrincipalController;
+use App\Http\Controllers\Admin\PositionController;
+use App\Http\Controllers\Admin\DepartmentController;
 
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Redirection based on roles
+    Route::get('/dashboard', function () {
+        $user = auth()->user();
+        if ($user->hasAnyRole(['super_admin', 'lms_admin', 'principal_admin'])) {
+            return redirect()->route('admin.dashboard');
+        }
+        return redirect()->route('learner.my-courses');
+    })->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Admin Routes
+    Route::prefix('admin')->name('admin.')->middleware(['role:super_admin|lms_admin|principal_admin'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        
+        // Master Data Phase 1
+        Route::resource('principals', PrincipalController::class)->except(['create', 'edit', 'show']);
+        Route::resource('positions', PositionController::class)->except(['create', 'edit', 'show']);
+        Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
+        
+        Route::resource('users', UserController::class);
+        Route::resource('courses', CourseController::class);
+        Route::resource('assignment_rules', AssignmentRuleController::class);
+        Route::resource('question_banks', QuestionBankController::class);
+        Route::resource('assessments', AssessmentController::class);
+        Route::resource('imports', ImportController::class);
+        Route::post('courses/{course}/modules', [ModuleController::class, 'store'])->name('courses.modules.store');
+        Route::delete('courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('courses.modules.destroy');
+        Route::post('modules/{module}/lessons', [LessonController::class, 'store'])->name('modules.lessons.store');
+        Route::delete('modules/{module}/lessons/{lesson}', [LessonController::class, 'destroy'])->name('modules.lessons.destroy');
+    });
+
+    // Learner Routes
+    Route::prefix('learner')->name('learner.')->middleware(['role:learner'])->group(function () {
+        Route::get('/my-courses', [LearnerCourseController::class, 'index'])->name('my-courses');
+        Route::get('/courses/{course}', [LearnerCourseController::class, 'show'])->name('courses.show');
+        Route::post('/progress', [ProgressController::class, 'update'])->name('progress.update');
+        Route::get('/courses/{course}/assessments/{assessment}', [LearnerAssessmentController::class, 'show'])->name('courses.assessments.show');
+        Route::post('/courses/{course}/attempts/{attempt}', [LearnerAssessmentController::class, 'submit'])->name('courses.attempts.submit');
+    });
 });
 
 require __DIR__.'/auth.php';
 
-use App\Http\Controllers\Admin\UserController;
-
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('users', UserController::class);
-});
-use App\Http\Controllers\Admin\CourseController;
-
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('courses', CourseController::class);
-    Route::post('courses/{course}/modules', [App\Http\Controllers\Admin\ModuleController::class, 'store'])->name('courses.modules.store');
-    Route::put('courses/{course}/modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'update'])->name('courses.modules.update');
-    Route::delete('courses/{course}/modules/{module}', [App\Http\Controllers\Admin\ModuleController::class, 'destroy'])->name('courses.modules.destroy');
-    
-    Route::post('courses/{course}/modules/{module}/lessons', [App\Http\Controllers\Admin\LessonController::class, 'store'])->name('courses.modules.lessons.store');
-    Route::put('courses/{course}/modules/{module}/lessons/{lesson}', [App\Http\Controllers\Admin\LessonController::class, 'update'])->name('courses.modules.lessons.update');
-    Route::delete('courses/{course}/modules/{module}/lessons/{lesson}', [App\Http\Controllers\Admin\LessonController::class, 'destroy'])->name('courses.modules.lessons.destroy');
-});
-
-use App\Http\Controllers\LearnerController;
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/my-courses', [LearnerController::class, 'myCourses'])->name('learner.courses');
-    Route::post('/courses/{course}/enroll', [LearnerController::class, 'enroll'])->name('learner.enroll');
-    Route::get('/courses/{course}/learn', [LearnerController::class, 'learn'])->name('learner.learn');
-    Route::post('/courses/{course}/progress', [LearnerController::class, 'updateProgress'])->name('learner.progress');
-    Route::get('/courses/{course}/assessment', [LearnerController::class, 'assessment'])->name('learner.assessment');
-    Route::post('/courses/{course}/assessment', [LearnerController::class, 'submitAssessment'])->name('learner.assessment.submit');
-});
 
 
 
 
 
-use App\Http\Controllers\Learner\CertificateController;
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/my-certificates', [CertificateController::class, 'index'])->name('learner.certificates');
-    Route::get('/certificates/{certificate}/download', [CertificateController::class, 'download'])->name('learner.certificates.download');
-});
 
-use App\Http\Controllers\Admin\ReportController;
-Route::middleware(['auth', 'verified', 'role:Admin'])->prefix('admin')->group(function () {
-    Route::get('/reports', [ReportController::class, 'index'])->name('admin.reports.index');
-});
+
 
