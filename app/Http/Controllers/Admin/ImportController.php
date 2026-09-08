@@ -118,5 +118,29 @@ class ImportController extends Controller
 
         return back()->with('success', "Import completed. Processed: $processed, Failed: $failed");
     }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=import_template.csv",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $columns = ['name', 'email', 'nik', 'password', 'principal_id', 'position_id', 'department_id', 'join_date'];
+        $dummyData = ['John Doe', 'john@example.com', '123456789', 'password123', '1', '1', '1', '2023-01-01'];
+
+        $callback = function() use($columns, $dummyData) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            fputcsv($file, $dummyData);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
+
 
