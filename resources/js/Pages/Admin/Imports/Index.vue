@@ -34,7 +34,7 @@ const submitUpdate = () => {
                         <h3 class="text-lg font-bold text-blue-800 mb-2">Panduan Bulk Import</h3>
                         <p class="text-sm text-blue-700 mb-2">
                             Pastikan baris pertama Excel/CSV memiliki judul kolom persis seperti ini: <br/>
-                            <code class="bg-blue-100 px-1 py-0.5 rounded font-mono text-xs text-blue-900">name, email, nik, password, principal, position, department, join_date</code>
+                            <code class="bg-blue-100 px-1 py-0.5 rounded font-mono text-xs text-blue-900">nik, name, email, nip, entity, principal, region, area, position, department, join_date</code>
                         </p>
                         <p class="text-xs text-blue-600 font-semibold mt-2">
                             ATURAN SISTEM MULTI-PRINCIPAL: <br/>
@@ -80,3 +80,4 @@ const submitUpdate = () => {
         </div>
     </AdminLayout>
 </template>
+

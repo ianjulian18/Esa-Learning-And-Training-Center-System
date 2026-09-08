@@ -20,3 +20,4 @@ class EmploymentHistory extends Model
     public function position() { return $this->belongsTo(Position::class); }
     public function department() { return $this->belongsTo(Department::class); }
 }
+

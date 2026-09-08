@@ -39,7 +39,10 @@ class UserController extends Controller
             'email' => 'required|string|email|unique:users',
             'password' => 'required|string|min:8',
             'nip' => 'required|string',
+            'entity_id' => 'required|exists:entities,id',
             'principal_id' => 'required|exists:principals,id',
+            'region_id' => 'nullable|exists:regions,id',
+            'area_id' => 'nullable|exists:areas,id',
             'position_id' => 'required|exists:positions,id',
             'department_id' => 'nullable|exists:departments,id',
             'start_date' => 'required|date',
@@ -57,7 +60,10 @@ class UserController extends Controller
         EmploymentHistory::create([
             'user_id' => $user->id,
             'nip' => $validated['nip'],
+            'entity_id' => $validated['entity_id'],
             'principal_id' => $validated['principal_id'],
+            'region_id' => $validated['region_id'] ?? null,
+            'area_id' => $validated['area_id'] ?? null,
             'position_id' => $validated['position_id'],
             'department_id' => $validated['department_id'],
             'start_date' => $validated['start_date'],
@@ -93,7 +99,10 @@ class UserController extends Controller
             'email' => 'required|string|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8',
             'nip' => 'required|string',
+            'entity_id' => 'required|exists:entities,id',
             'principal_id' => 'required|exists:principals,id',
+            'region_id' => 'nullable|exists:regions,id',
+            'area_id' => 'nullable|exists:areas,id',
             'position_id' => 'required|exists:positions,id',
             'department_id' => 'nullable|exists:departments,id',
             'start_date' => 'required|date',
@@ -139,7 +148,10 @@ class UserController extends Controller
         EmploymentHistory::create([
             'user_id' => $user->id,
             'nip' => $validated['nip'],
+            'entity_id' => $validated['entity_id'],
             'principal_id' => $validated['principal_id'],
+            'region_id' => $validated['region_id'] ?? null,
+            'area_id' => $validated['area_id'] ?? null,
             'position_id' => $validated['position_id'],
             'department_id' => $validated['department_id'],
             'start_date' => $validated['start_date'],
@@ -151,4 +163,5 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User updated successfully.');
     }
 }
+
 

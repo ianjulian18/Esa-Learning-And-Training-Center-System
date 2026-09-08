@@ -9,7 +9,10 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('nip');
+            $table->foreignId('entity_id')->constrained('entities')->onDelete('cascade');
             $table->foreignId('principal_id')->constrained()->onDelete('cascade');
+            $table->foreignId('region_id')->nullable()->constrained('regions')->onDelete('cascade');
+            $table->foreignId('area_id')->nullable()->constrained('areas')->onDelete('cascade');
             $table->foreignId('position_id')->constrained()->onDelete('cascade');
             $table->foreignId('department_id')->nullable()->constrained()->onDelete('cascade');
             $table->date('start_date');
@@ -21,3 +24,4 @@ return new class extends Migration {
     }
     public function down(): void { Schema::dropIfExists('employment_histories'); }
 };
+
