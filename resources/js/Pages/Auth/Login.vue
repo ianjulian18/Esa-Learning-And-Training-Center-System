@@ -13,7 +13,7 @@ defineProps<{
 }>();
 
 const form = useForm({
-    nik: '',
+    login_id: '',
     password: '',
     remember: false,
 });
@@ -37,19 +37,19 @@ const submit = () => {
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="nik" value="NIK / NIP" />
+                <InputLabel for="login_id" value="Email / NIK / NIP" />
 
                 <TextInput
-                    id="nik"
+                    id="login_id"
                     type="text"
                     class="mt-1 block w-full"
-                    v-model="form.nik"
+                    v-model="form.login_id"
                     required
                     autofocus
                     autocomplete="username"
                 />
 
-                <InputError class="mt-2" :message="form.errors.nik" />
+                <InputError class="mt-2" :message="form.errors.login_id" />
             </div>
 
             <div class="mt-4">
@@ -96,5 +96,6 @@ const submit = () => {
         </form>
     </GuestLayout>
 </template>
+
 
 
