@@ -44,6 +44,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         
         // Master Data Phase 1
+        Route::resource('entities', \App\Http\Controllers\Admin\EntityController::class)->except(['create', 'edit', 'show']);
+        Route::resource('regions', \App\Http\Controllers\Admin\RegionController::class)->except(['create', 'edit', 'show']);
+        Route::resource('areas', \App\Http\Controllers\Admin\AreaController::class)->except(['create', 'edit', 'show']);
         Route::resource('principals', PrincipalController::class)->except(['create', 'edit', 'show']);
         Route::resource('positions', PositionController::class)->except(['create', 'edit', 'show']);
         Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
@@ -77,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
 
 
 
