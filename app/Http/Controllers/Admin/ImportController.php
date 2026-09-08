@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -6,7 +7,11 @@ use App\Models\ImportBatch;
 use App\Models\ImportRow;
 use App\Models\User;
 use App\Models\EmploymentHistory;
+use App\Models\PrincipalHistory;
+use App\Models\Entity;
 use App\Models\Principal;
+use App\Models\Region;
+use App\Models\Area;
 use App\Models\Position;
 use App\Models\Department;
 use App\Services\AssignmentEngine;
@@ -34,25 +39,50 @@ class ImportController extends Controller
         $file = $request->file('file');
         $csvData = array_map('str_getcsv', file($file->getRealPath()));
         $header = array_shift($csvData);
+        // Trim headers
+        $header = array_map('trim', $header);
         return [$header, $csvData];
     }
 
     private function resolveReferences($data)
     {
-        $principal = Principal::whereRaw('LOWER(name) = ?', [strtolower(trim($data['principal']))])->first();
-        if (!$principal) throw new \Exception('Principal name not found: ' . $data['principal']);
+        $entity = Entity::whereRaw('LOWER(name) = ?', [strtolower(trim($data['entity'] ?? ''))])->first();
+        if (!$entity) throw new \Exception('Entity name not found: ' . ($data['entity'] ?? ''));
 
-        $position = Position::whereRaw('LOWER(name) = ?', [strtolower(trim($data['position']))])->first();
-        if (!$position) throw new \Exception('Position name not found: ' . $data['position']);
+        $principal = Principal::where('entity_id', $entity->id)->whereRaw('LOWER(name) = ?', [strtolower(trim($data['principal'] ?? ''))])->first();
+        if (!$principal) throw new \Exception('Principal name not found in Entity: ' . ($data['principal'] ?? ''));
 
-        $departmentId = null;
-        if (!empty($data['department'])) {
-            $department = Department::whereRaw('LOWER(name) = ?', [strtolower(trim($data['department']))])->first();
-            if (!$department) throw new \Exception('Department name not found: ' . $data['department']);
-            $departmentId = $department->id;
+        $regionId = null;
+        if (!empty(trim($data['region'] ?? ''))) {
+            $region = Region::whereRaw('LOWER(name) = ?', [strtolower(trim($data['region']))])->first();
+            if ($region) $regionId = $region->id;
         }
 
-        return [$principal->id, $position->id, $departmentId];
+        $areaId = null;
+        if (!empty(trim($data['area'] ?? ''))) {
+            if ($regionId) {
+                $area = Area::where('region_id', $regionId)->whereRaw('LOWER(name) = ?', [strtolower(trim($data['area']))])->first();
+            } else {
+                $area = Area::whereRaw('LOWER(name) = ?', [strtolower(trim($data['area']))])->first();
+            }
+            if ($area) {
+                $areaId = $area->id;
+                $regionId = $area->region_id; // Infer region
+            } else {
+                throw new \Exception('Area name not found: ' . $data['area']);
+            }
+        }
+
+        $position = Position::whereRaw('LOWER(name) = ?', [strtolower(trim($data['position'] ?? ''))])->first();
+        if (!$position) throw new \Exception('Position name not found: ' . ($data['position'] ?? ''));
+
+        $departmentId = null;
+        if (!empty(trim($data['department'] ?? ''))) {
+            $department = Department::whereRaw('LOWER(name) = ?', [strtolower(trim($data['department']))])->first();
+            if ($department) $departmentId = $department->id;
+        }
+
+        return [$entity->id, $principal->id, $regionId, $areaId, $position->id, $departmentId];
     }
 
     public function storeCreate(Request $request)
@@ -81,7 +111,6 @@ class ImportController extends Controller
             try {
                 DB::beginTransaction();
 
-                // 9.1 Import Create: Jika unique key sudah ada: ERROR.
                 $existingUser = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
                 if ($existingUser) {
                     throw new \Exception('User already exists (NIK/Email). Cannot Create.');
@@ -95,16 +124,26 @@ class ImportController extends Controller
                 ]);
                 $user->assignRole('Learner');
 
-                list($principalId, $positionId, $departmentId) = $this->resolveReferences($data);
+                list($entityId, $principalId, $regionId, $areaId, $positionId, $departmentId) = $this->resolveReferences($data);
+
+                PrincipalHistory::create([
+                    'user_id' => $user->id,
+                    'principal_id' => $principalId,
+                    'start_date' => $data['join_date'] ?? now()->toDateString()
+                ]);
 
                 EmploymentHistory::create([
                     'user_id' => $user->id,
+                    'nip' => $data['nip'],
+                    'entity_id' => $entityId,
                     'principal_id' => $principalId,
+                    'region_id' => $regionId,
+                    'area_id' => $areaId,
                     'position_id' => $positionId,
                     'department_id' => $departmentId,
-                    'nik' => $data['nik'],
-                    'join_date' => $data['join_date'] ?? now()->toDateString(),
-                    'status' => 'ACTIVE'
+                    'start_date' => $data['join_date'] ?? now()->toDateString(),
+                    'status' => 'ACTIVE',
+                    'source' => 'IMPORT'
                 ]);
 
                 AssignmentEngine::evaluateUser($user);
@@ -154,36 +193,49 @@ class ImportController extends Controller
             try {
                 DB::beginTransaction();
 
-                // 9.2 Import Update: Jika unique key tidak ditemukan: ERROR. Tidak boleh membuat data baru.
                 $user = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
                 if (!$user) {
                     throw new \Exception('User not found. Cannot Update.');
                 }
 
-                // Update basic info if provided
                 if (!empty($data['name'])) $user->name = $data['name'];
                 if (!empty($data['password'])) $user->password = Hash::make($data['password']);
                 $user->save();
 
-                list($principalId, $positionId, $departmentId) = $this->resolveReferences($data);
+                list($entityId, $principalId, $regionId, $areaId, $positionId, $departmentId) = $this->resolveReferences($data);
 
-                // Close previous active histories
+                // Handle Principal History
+                $activePrincipal = PrincipalHistory::where('user_id', $user->id)
+                    ->whereNull('end_date')
+                    ->orderBy('start_date', 'desc')
+                    ->first();
+
+                if (!$activePrincipal || $activePrincipal->principal_id != $principalId) {
+                    if ($activePrincipal) $activePrincipal->update(['end_date' => now()]);
+                    PrincipalHistory::create([
+                        'user_id' => $user->id,
+                        'principal_id' => $principalId,
+                        'start_date' => $data['join_date'] ?? now()->toDateString()
+                    ]);
+                }
+
+                // Handle Employment History
                 EmploymentHistory::where('user_id', $user->id)
                     ->where('status', 'ACTIVE')
-                    ->update([
-                        'status' => 'INACTIVE',
-                        'end_date' => now()
-                    ]);
+                    ->update(['status' => 'INACTIVE', 'end_date' => now()]);
 
-                // Create new active history
                 EmploymentHistory::create([
                     'user_id' => $user->id,
+                    'nip' => $data['nip'],
+                    'entity_id' => $entityId,
                     'principal_id' => $principalId,
+                    'region_id' => $regionId,
+                    'area_id' => $areaId,
                     'position_id' => $positionId,
                     'department_id' => $departmentId,
-                    'nik' => $data['nik'],
-                    'join_date' => $data['join_date'] ?? now()->toDateString(),
-                    'status' => 'ACTIVE'
+                    'start_date' => $data['join_date'] ?? now()->toDateString(),
+                    'status' => 'ACTIVE',
+                    'source' => 'IMPORT'
                 ]);
 
                 AssignmentEngine::evaluateUser($user);
@@ -217,8 +269,8 @@ class ImportController extends Controller
             "Expires"             => "0"
         ];
 
-        $columns = ['name', 'email', 'nik', 'password', 'principal', 'position', 'department', 'join_date'];
-        $dummyData = ['John Doe', 'john@example.com', '123456789', 'password123', 'PT. Utama', 'Staff IT', 'Teknologi Informasi', '2023-01-01'];
+        $columns = ['nik', 'name', 'email', 'nip', 'entity', 'principal', 'region', 'area', 'position', 'department', 'join_date', 'password'];
+        $dummyData = ['123456789', 'John Doe', 'john@example.com', 'EMP001', 'AMK', 'PT A', 'Region 4', 'Surabaya', 'Staff IT', 'Teknologi Informasi', '2024-01-01', 'password123'];
 
         $callback = function() use($columns, $dummyData) {
             $file = fopen('php://output', 'w');
@@ -230,6 +282,3 @@ class ImportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
-
-
-

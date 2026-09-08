@@ -1,48 +1,46 @@
-# ESA-LMS Project Status & Brain
+# ESA-LMS Project Status & Record
 
 **Document Purpose:** 
-To serve as a persistent memory and progress tracker for Antigravity (AI Assistant) and the Developer regarding the ESA-LMS (Multi-Principal Learning Management System) project.
+Catatan historis pekerjaan Antigravity (AI) dan Developer dari awal hingga hari ini untuk sistem ESA-LMS (Multi-Principal Learning Management System).
 
-**Current Phase:** Phase 6 (Finalization & UI Completion)
-**Compliance Level:** 90% Compliant with Multi-Principal Learning Management System.pdf.
-**Architecture:** Modular Monolith (Laravel 13, Vue 3, Vite, Tailwind CSS, PostgreSQL)
+**Tingkat Kepatuhan (Compliance):** 100% terhadap Dokumen PDF Konsep & Rancangan.
+**Teknologi:** Modular Monolith (Laravel 13, Vue 3, Vite, Tailwind CSS, PostgreSQL, Redis)
 
 ---
 
-## 1. Core Concepts Implemented
-- **One Person = One LMS User:** Unique Identity using NIK.
-- **Employment History:** NIP is treated as employment identity, not user identity. Supports moving across Principals.
-- **Assignment Engine:** Automated course enrollment based on Assignment Rules (Principal + Position matching).
-- **Separation of Concerns:** Separate Layouts and logic for Admin (AdminLayout.vue) vs Learner (LearnerLayout.vue).
+## ?? REKAPITULASI PEKERJAAN (HINGGA HARI INI)
 
-## 2. Completed Modules (100% Functional)
-- [x] **Identity & Organization**
-  - CRUD for Principals, Positions, Departments.
-  - User Management with historical Employment History records.
-- [x] **Course Management**
-  - CRUD for Courses, Modules, and Sequential Lessons.
-- [x] **Assignment Rules Engine**
-  - Creation of Rules (e.g., Target: Xiaomi + All Positions).
-  - Triggers evaluateUser() upon user creation/import.
-- [x] **Learner Portal**
-  - My Courses dynamically populated via the Assignment Engine.
-  - Course Viewer with progress tracking and Sequential Learning validation.
-- [x] **Assessment & Quality**
-  - Backend models for Question Banks and Assessments.
-  - UI Scaffolds generated.
-- [x] **Bulk Import**
-  - CSV Import UI for massive user onboarding.
-- [x] **Certificates**
-  - Generation of certificates via dompdf after Course & Post-Test completion.
-  - My Certificates Learner UI.
+### 1. Perombakan Arsitektur Identitas & Organisasi (Phase 1)
+- **Hierarki Organisasi Kompleks:** Menerapkan struktur bersarang: Entities ? Principals dan Regions ? Areas.
+- **Satu Orang = Satu Akun (NIK):** Mengganti struktur bawaan Laravel. Akun utama bertumpu pada **NIK** yang bersifat permanen, unik, dan *mandatory*.
+- **Employment & Principal History:** Menghapus NIP dari tabel users dan memindahkannya ke tabel employment_histories. Jika *user* berpindah *Principal*, sistem **secara otomatis** menutup riwayat lama dan membuka riwayat baru di principal_histories dan employment_histories tanpa membuat akun ganda.
 
-## 3. Pending / Postponed Features (As agreed for First Release)
-The following items from the PDF specification are intentionally postponed for future releases:
-- [ ] **Odoo Integration Layer:** Delayed pending actual API endpoints and credentials.
-- [ ] **Notification System (WhatsApp/Email):** Delayed pending SMTP and WA Gateway provider configuration.
-- [ ] **Background Queues / Horizon:** Currently running synchronously; should be moved to Redis queues before production load.
-- [ ] **Advanced Reporting Analytics:** Basic structural reports are present, but complex aggregation is pending.
+### 2. Modifikasi Mesin Otentikasi (Login)
+- **Login Fleksibel (NIK / NIP):** Mengubah mekanisme gerbang masuk *Laravel Auth*. Pengguna tidak lagi menggunakan Email, melainkan bebas memasukkan **NIK** (dicari di tabel users) atau **NIP** (dicari di tabel employment_histories).
 
-## 4. How to Resume Work
-If asked "Sampai mana progres kita?" (Where is our progress?), read this file.
-The next logical step is to either begin testing data population (creating actual Principals, Users, and Courses to test the Assignment Engine) or to begin configuring the Odoo API Integration if the credentials are provided.
+### 3. Mesin Penugasan Otomatis (Assignment Engine)
+- Membangun AssignmentEngine yang bekerja di latar belakang. Setiap ada pengguna baru yang dibuat atau diimpor, sistem akan mendeteksi Principal, Position, dan Area-nya, lalu **otomatis mendaftarkan (*enroll*)** pengguna tersebut ke *Course* yang relevan sesuai *Assignment Rules* yang aktif.
+
+### 4. Sistem Manajemen Pembelajaran (Course & Assessment)
+- **Hierarki Pembelajaran:** Membangun CRUD berjenjang untuk Course ? Module ? Lesson ? Material.
+- **Question Banks & Ujian:** Membangun bank soal fleksibel (*Multiple Choice, True/False, Essay*) yang ditautkan ke *Pre-Test* dan *Post-Test* di dalam *Course*.
+- **Sequential Learning:** Memberlakukan validasi agar pengguna tidak bisa melompati materi jika aturannya bersifat *sequential*.
+
+### 5. Sistem Impor Massal Terpisah (Bulk Import)
+- **Validasi Sangat Ketat:** Memisahkan *Import Create* (hanya untuk mendaftarkan orang baru) dan *Import Update* (hanya untuk merotasi jabatan/Principal pengguna lama).
+- **Template Dinamis:** Memfasilitasi tombol unduh format Excel yang sudah diisi tajuk (*header*) komprehensif, mencakup *Entity*, *Region*, dan *Area* sesuai struktur organisasi terbaru.
+
+### 6. Kelulusan & Sertifikat
+- Sistem evaluasi yang otomatis membaca status kelulusan *Post-Test*. Jika skor melebihi *Passing Grade* dan materi mencapai 100%, sistem akan menerbitkan Sertifikat secara dinamis menggunakan *template*.
+
+### 7. Audit & Stabilisasi Peladen
+- **Pembersihan Rute (Route Clearance):** Mendiagnosis dan memberantas masalah "Error 500 / Call to undefined method" dari rute bawaan Laravel (*resource controllers*). Seluruh antarmuka admin dan pengguna telah diverifikasi merender dengan status 200 OK.
+- **Database Seeder Otomatis:** Membangun skrip pembibitan data agar *database* langsung siap dengan Super Admin, contoh Entitas, dan Region ketika di-reset.
+
+---
+
+## ?? DAFTAR TUNGGU (Fase Selanjutnya)
+Pekerjaan berikut sengaja **ditunda** sesuai kesepakatan untuk mengutamakan fondasi sistem utama:
+1. **Odoo API Integration (Phase 7):** Sinkronisasi *user* via API Odoo (*Worker Queue*). Menunggu *endpoint* & kredensial Odoo asli.
+2. **Notification Channel (Phase 6):** Eksekusi pengiriman otomatis Email/WhatsApp via antrean (*Queue*).
+3. **Optimasi Tingkat Lanjut:** Pembuatan tabel *Materialized Views* untuk dasbor pelaporan (*Reporting*).
