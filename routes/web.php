@@ -55,7 +55,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('question_banks/{bank}/questions', [QuestionBankController::class, 'storeQuestion'])->name('question_banks.questions.store');
         Route::delete('question_banks/{bank}/questions/{question}', [QuestionBankController::class, 'destroyQuestion'])->name('question_banks.questions.destroy');
         Route::resource('assessments', AssessmentController::class);
-        Route::resource('imports', ImportController::class);
+        Route::get('imports/template', [ImportController::class, 'downloadTemplate'])->name('imports.template');
+          Route::resource('imports', ImportController::class);
         Route::post('courses/{course}/modules', [ModuleController::class, 'store'])->name('courses.modules.store');
         Route::delete('courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('courses.modules.destroy');
         Route::post('modules/{module}/lessons', [LessonController::class, 'store'])->name('modules.lessons.store');
@@ -73,6 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
 
 
 
