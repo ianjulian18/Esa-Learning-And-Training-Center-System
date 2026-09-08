@@ -90,11 +90,10 @@ class ImportController extends Controller
         list($header, $csvData) = $this->validateAndParseCsv($request);
 
         $batch = ImportBatch::create([
-            'admin_id' => $request->user()->id,
+            'uploaded_by' => $request->user()->id, 'type' => 'CREATE', 'file_name' => $request->file('file')->getClientOriginalName(),
             'status' => 'PROCESSING',
             'total_rows' => count($csvData),
-            'processed_rows' => 0,
-            'failed_rows' => 0
+            
         ]);
 
         $processed = 0;
@@ -163,7 +162,7 @@ class ImportController extends Controller
             }
         }
 
-        $batch->update(['status' => 'COMPLETED', 'processed_rows' => $processed, 'failed_rows' => $failed]);
+        $batch->update(['status' => 'COMPLETED']);
         return back()->with('success', "Import Create completed. Processed: $processed, Failed: $failed");
     }
 
@@ -172,11 +171,10 @@ class ImportController extends Controller
         list($header, $csvData) = $this->validateAndParseCsv($request);
 
         $batch = ImportBatch::create([
-            'admin_id' => $request->user()->id,
+            'uploaded_by' => $request->user()->id, 'type' => 'UPDATE', 'file_name' => $request->file('file')->getClientOriginalName(),
             'status' => 'PROCESSING',
             'total_rows' => count($csvData),
-            'processed_rows' => 0,
-            'failed_rows' => 0
+            
         ]);
 
         $processed = 0;
@@ -255,7 +253,7 @@ class ImportController extends Controller
             }
         }
 
-        $batch->update(['status' => 'COMPLETED', 'processed_rows' => $processed, 'failed_rows' => $failed]);
+        $batch->update(['status' => 'COMPLETED']);
         return back()->with('success', "Import Update completed. Processed: $processed, Failed: $failed");
     }
 
@@ -282,3 +280,4 @@ class ImportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
+
