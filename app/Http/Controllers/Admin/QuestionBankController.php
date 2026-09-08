@@ -11,7 +11,7 @@ class QuestionBankController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Admin/Assessments/QuestionBanks', [
+        return Inertia::render('Admin/QuestionBanks/Index', [
             'question_banks' => QuestionBank::withCount('questions')->get()
         ]);
     }
@@ -62,3 +62,4 @@ class QuestionBankController extends Controller
         return back()->with('success', 'Question deleted successfully.');
     }
 }
+
