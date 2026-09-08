@@ -72,6 +72,20 @@ class ImportController extends Controller
                     $user->assignRole('Learner');
                 }
 
+                // Lookup IDs by Name (Case Insensitive)
+                $principal = Principal::whereRaw('LOWER(name) = ?', [strtolower(trim($data['principal']))])->first();
+                if (!$principal) throw new \Exception('Principal name not found: ' . $data['principal']);
+
+                $position = Position::whereRaw('LOWER(name) = ?', [strtolower(trim($data['position']))])->first();
+                if (!$position) throw new \Exception('Position name not found: ' . $data['position']);
+
+                $departmentId = null;
+                if (!empty($data['department'])) {
+                    $department = Department::whereRaw('LOWER(name) = ?', [strtolower(trim($data['department']))])->first();
+                    if (!$department) throw new \Exception('Department name not found: ' . $data['department']);
+                    $departmentId = $department->id;
+                }
+
                 // 2. Create Employment History
                 // Close previous active histories
                 EmploymentHistory::where('user_id', $user->id)
@@ -84,9 +98,9 @@ class ImportController extends Controller
                 // Create new active history
                 EmploymentHistory::create([
                     'user_id' => $user->id,
-                    'principal_id' => $data['principal_id'],
-                    'position_id' => $data['position_id'],
-                    'department_id' => $data['department_id'] ?: null,
+                    'principal_id' => $principal->id,
+                    'position_id' => $position->id,
+                    'department_id' => $departmentId,
                     'nik' => $data['nik'],
                     'join_date' => $data['join_date'] ?? now()->toDateString(),
                     'status' => 'ACTIVE'
@@ -129,8 +143,8 @@ class ImportController extends Controller
             "Expires"             => "0"
         ];
 
-        $columns = ['name', 'email', 'nik', 'password', 'principal_id', 'position_id', 'department_id', 'join_date'];
-        $dummyData = ['John Doe', 'john@example.com', '123456789', 'password123', '1', '1', '1', '2023-01-01'];
+        $columns = ['name', 'email', 'nik', 'password', 'principal', 'position', 'department', 'join_date'];
+        $dummyData = ['John Doe', 'john@example.com', '123456789', 'password123', 'PT. Utama', 'Staff IT', 'Teknologi Informasi', '2023-01-01'];
 
         $callback = function() use($columns, $dummyData) {
             $file = fopen('php://output', 'w');
@@ -142,5 +156,6 @@ class ImportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
+
 
 

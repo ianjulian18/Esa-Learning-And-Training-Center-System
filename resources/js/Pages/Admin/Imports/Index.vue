@@ -27,10 +27,10 @@ const submit = () => {
                         <h3 class="text-lg font-bold text-blue-800 mb-2">How to bulk import users</h3>
                         <p class="text-sm text-blue-700 mb-2">
                             Please upload a standard CSV file. The first row must contain exactly these column headers: <br/>
-                            <code class="bg-blue-100 px-1 py-0.5 rounded font-mono text-xs text-blue-900">name, email, nik, password, principal_id, position_id, department_id, join_date</code>
+                            <code class="bg-blue-100 px-1 py-0.5 rounded font-mono text-xs text-blue-900">name, email, nik, password, principal, position, department, join_date</code>
                         </p>
                         <p class="text-xs text-blue-600">
-                            * Note: For principals, positions, and departments, you must use their numeric Database IDs, not their string names.
+                            * Catatan: Tuliskan NAMA persis sesuai dengan yang terdaftar di database (huruf besar/kecil tidak masalah, asalkan ejaannya sama).
                         </p>
                     </div>
                     <div>
@@ -56,3 +56,4 @@ const submit = () => {
         </div>
     </AdminLayout>
 </template>
+
