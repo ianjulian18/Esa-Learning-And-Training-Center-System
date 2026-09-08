@@ -18,6 +18,8 @@ use App\Services\AssignmentEngine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ImportController extends Controller
@@ -30,18 +32,25 @@ class ImportController extends Controller
         ]);
     }
 
-    private function validateAndParseCsv(Request $request)
+    private function validateAndParseCsv(Request $request, $isFileUpload = true)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10240'
-        ]);
+        if ($isFileUpload) {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,txt|max:10240'
+            ]);
+            $filePath = $request->file('file')->getRealPath();
+        } else {
+            $request->validate(['file_id' => 'required|string']);
+            $filePath = storage_path('app/imports_temp/' . $request->file_id . '.csv');
+            if (!file_exists($filePath)) {
+                throw new \Exception('Temporary file not found. Please re-upload.');
+            }
+        }
 
-        $file = $request->file('file');
-        $csvData = array_map('str_getcsv', file($file->getRealPath()));
+        $csvData = array_map('str_getcsv', file($filePath));
         $header = array_shift($csvData);
-        // Trim headers
         $header = array_map('trim', $header);
-        return [$header, $csvData];
+        return [$header, $csvData, $filePath];
     }
 
     private function resolveReferences($data)
@@ -67,7 +76,7 @@ class ImportController extends Controller
             }
             if ($area) {
                 $areaId = $area->id;
-                $regionId = $area->region_id; // Infer region
+                $regionId = $area->region_id;
             } else {
                 throw new \Exception('Area name not found: ' . $data['area']);
             }
@@ -85,15 +94,75 @@ class ImportController extends Controller
         return [$entity->id, $principal->id, $regionId, $areaId, $position->id, $departmentId];
     }
 
+    public function preview(Request $request)
+    {
+        $request->validate(['type' => 'required|in:CREATE,UPDATE']);
+        list($header, $csvData, $tempPath) = $this->validateAndParseCsv($request, true);
+
+        // Save to temp
+        $fileId = Str::uuid()->toString();
+        $storedPath = 'imports_temp/' . $fileId . '.csv';
+        Storage::put($storedPath, file_get_contents($tempPath));
+
+        $total = count($csvData);
+        $valid = 0;
+        $errors = 0;
+        $errorDetails = [];
+
+        foreach ($csvData as $idx => $row) {
+            if (count($header) !== count($row)) {
+                $errors++;
+                $errorDetails[] = ['row' => $idx + 2, 'message' => 'Kolom tidak sesuai dengan header.'];
+                continue;
+            }
+            
+            $data = array_combine($header, $row);
+            $rowNum = $idx + 2;
+
+            try {
+                if ($request->type === 'CREATE') {
+                    $existingUser = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
+                    if ($existingUser) {
+                        throw new \Exception('User already exists (NIK/Email).');
+                    }
+                } else {
+                    $user = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
+                    if (!$user) {
+                        throw new \Exception('User not found. Cannot Update.');
+                    }
+                }
+
+                $this->resolveReferences($data);
+                $valid++;
+            } catch (\Exception $e) {
+                $errors++;
+                if (count($errorDetails) < 50) {
+                    $errorDetails[] = ['row' => $rowNum, 'message' => $e->getMessage()];
+                }
+            }
+        }
+
+        return response()->json([
+            'file_id' => $fileId,
+            'file_name' => $request->file('file')->getClientOriginalName(),
+            'total' => $total,
+            'valid' => $valid,
+            'errors' => $errors,
+            'error_details' => $errorDetails
+        ]);
+    }
+
     public function storeCreate(Request $request)
     {
-        list($header, $csvData) = $this->validateAndParseCsv($request);
+        $request->validate(['file_name' => 'required|string']);
+        list($header, $csvData, $filePath) = $this->validateAndParseCsv($request, false);
 
         $batch = ImportBatch::create([
-            'uploaded_by' => $request->user()->id, 'type' => 'CREATE', 'file_name' => $request->file('file')->getClientOriginalName(),
+            'uploaded_by' => $request->user()->id, 
+            'type' => 'CREATE', 
+            'file_name' => $request->file_name,
             'status' => 'PROCESSING',
-            'total_rows' => count($csvData),
-            
+            'total_rows' => count($csvData)
         ]);
 
         $processed = 0;
@@ -104,16 +173,12 @@ class ImportController extends Controller
                 $failed++;
                 continue;
             }
-            
             $data = array_combine($header, $row);
-            
             try {
                 DB::beginTransaction();
 
                 $existingUser = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
-                if ($existingUser) {
-                    throw new \Exception('User already exists (NIK/Email). Cannot Create.');
-                }
+                if ($existingUser) throw new \Exception('User already exists (NIK/Email). Cannot Create.');
 
                 $user = User::create([
                     'name' => $data['name'],
@@ -155,7 +220,7 @@ class ImportController extends Controller
                 ImportRow::create([
                     'import_batch_id' => $batch->id,
                     'row_number' => $idx + 2,
-                    'data' => $data,
+                    'data' => json_encode($data),
                     'status' => 'FAILED',
                     'error_message' => $e->getMessage()
                 ]);
@@ -163,18 +228,21 @@ class ImportController extends Controller
         }
 
         $batch->update(['status' => 'COMPLETED']);
-        return back()->with('success', "Import Create completed. Processed: $processed, Failed: $failed");
+        unlink($filePath);
+        return redirect()->route('admin.imports.index')->with('success', "Import Create completed. Processed: $processed, Failed: $failed");
     }
 
     public function storeUpdate(Request $request)
     {
-        list($header, $csvData) = $this->validateAndParseCsv($request);
+        $request->validate(['file_name' => 'required|string']);
+        list($header, $csvData, $filePath) = $this->validateAndParseCsv($request, false);
 
         $batch = ImportBatch::create([
-            'uploaded_by' => $request->user()->id, 'type' => 'UPDATE', 'file_name' => $request->file('file')->getClientOriginalName(),
+            'uploaded_by' => $request->user()->id, 
+            'type' => 'UPDATE', 
+            'file_name' => $request->file_name,
             'status' => 'PROCESSING',
-            'total_rows' => count($csvData),
-            
+            'total_rows' => count($csvData)
         ]);
 
         $processed = 0;
@@ -185,16 +253,12 @@ class ImportController extends Controller
                 $failed++;
                 continue;
             }
-            
             $data = array_combine($header, $row);
-            
             try {
                 DB::beginTransaction();
 
                 $user = User::where('email', $data['email'])->orWhere('nik', $data['nik'])->first();
-                if (!$user) {
-                    throw new \Exception('User not found. Cannot Update.');
-                }
+                if (!$user) throw new \Exception('User not found. Cannot Update.');
 
                 if (!empty($data['name'])) $user->name = $data['name'];
                 if (!empty($data['password'])) $user->password = Hash::make($data['password']);
@@ -202,7 +266,6 @@ class ImportController extends Controller
 
                 list($entityId, $principalId, $regionId, $areaId, $positionId, $departmentId) = $this->resolveReferences($data);
 
-                // Handle Principal History
                 $activePrincipal = PrincipalHistory::where('user_id', $user->id)
                     ->whereNull('end_date')
                     ->orderBy('start_date', 'desc')
@@ -217,7 +280,6 @@ class ImportController extends Controller
                     ]);
                 }
 
-                // Handle Employment History
                 EmploymentHistory::where('user_id', $user->id)
                     ->where('status', 'ACTIVE')
                     ->update(['status' => 'INACTIVE', 'end_date' => now()]);
@@ -246,7 +308,7 @@ class ImportController extends Controller
                 ImportRow::create([
                     'import_batch_id' => $batch->id,
                     'row_number' => $idx + 2,
-                    'data' => $data,
+                    'data' => json_encode($data),
                     'status' => 'FAILED',
                     'error_message' => $e->getMessage()
                 ]);
@@ -254,7 +316,8 @@ class ImportController extends Controller
         }
 
         $batch->update(['status' => 'COMPLETED']);
-        return back()->with('success', "Import Update completed. Processed: $processed, Failed: $failed");
+        unlink($filePath);
+        return redirect()->route('admin.imports.index')->with('success', "Import Update completed. Processed: $processed, Failed: $failed");
     }
 
     public function downloadTemplate()
@@ -280,4 +343,3 @@ class ImportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
-
