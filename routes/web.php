@@ -52,6 +52,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('courses', CourseController::class);
         Route::resource('assignment_rules', AssignmentRuleController::class);
         Route::resource('question_banks', QuestionBankController::class);
+        Route::post('question_banks/{bank}/questions', [QuestionBankController::class, 'storeQuestion'])->name('question_banks.questions.store');
+        Route::delete('question_banks/{bank}/questions/{question}', [QuestionBankController::class, 'destroyQuestion'])->name('question_banks.questions.destroy');
         Route::resource('assessments', AssessmentController::class);
         Route::resource('imports', ImportController::class);
         Route::post('courses/{course}/modules', [ModuleController::class, 'store'])->name('courses.modules.store');
@@ -71,6 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
 
 
 

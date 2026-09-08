@@ -9,6 +9,13 @@ use Inertia\Inertia;
 
 class AssessmentController extends Controller
 {
+    public function index()
+    {
+        return Inertia::render('Admin/Assessments/Index', [
+            'assessments' => Assessment::with('course')->get()
+        ]);
+    }
+
     public function store(Request $request, Course $course)
     {
         $validated = $request->validate([

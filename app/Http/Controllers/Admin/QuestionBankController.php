@@ -12,7 +12,7 @@ class QuestionBankController extends Controller
     public function index()
     {
         return Inertia::render('Admin/Assessments/QuestionBanks', [
-            'banks' => QuestionBank::withCount('questions')->get()
+            'question_banks' => QuestionBank::withCount('questions')->get()
         ]);
     }
 
@@ -24,28 +24,41 @@ class QuestionBankController extends Controller
         ]);
 
         QuestionBank::create($validated);
-        return back();
+        return back()->with('success', 'Question Bank created successfully.');
     }
 
-    public function show(QuestionBank $questionBank)
+    public function destroy(QuestionBank $questionBank)
     {
-        $questionBank->load('questions');
+        $questionBank->delete();
+        return back()->with('success', 'Question Bank deleted successfully.');
+    }
+
+    public function show($id)
+    {
+        $questionBank = QuestionBank::with('questions')->findOrFail($id);
         return Inertia::render('Admin/Assessments/Questions', [
             'bank' => $questionBank
         ]);
     }
 
-    public function storeQuestion(Request $request, QuestionBank $questionBank)
+    public function storeQuestion(Request $request, $id)
     {
+        $questionBank = QuestionBank::findOrFail($id);
         $validated = $request->validate([
-            'content' => 'required|string',
-            'type' => 'required|in:MULTIPLE_CHOICE,TRUE_FALSE',
-            'options' => 'required|array',
-            'correct_answer' => 'required|string',
-            'explanation' => 'nullable|string'
+            'question_text' => 'required|string',
+            'type' => 'required|in:MULTIPLE_CHOICE,TRUE_FALSE,ESSAY',
+            'options' => 'nullable|array',
+            'answer_key' => 'required|string',
+            'points' => 'required|integer|min:1'
         ]);
 
         $questionBank->questions()->create($validated);
-        return back();
+        return back()->with('success', 'Question added successfully.');
+    }
+
+    public function destroyQuestion($bankId, $questionId)
+    {
+        Question::where('id', $questionId)->where('question_bank_id', $bankId)->delete();
+        return back()->with('success', 'Question deleted successfully.');
     }
 }
