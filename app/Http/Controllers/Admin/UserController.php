@@ -65,6 +65,12 @@ class UserController extends Controller
             'source' => 'MANUAL'
         ]);
 
+        \App\Models\PrincipalHistory::create([
+            'user_id' => $user->id,
+            'principal_id' => $validated['principal_id'],
+            'start_date' => $validated['start_date']
+        ]);
+
         AssignmentEngine::evaluateUser($user);
         return redirect()->route('admin.users.index')->with('success', 'User and Employment created.');
     }
@@ -102,30 +108,47 @@ class UserController extends Controller
             $user->update(['password' => Hash::make($validated['password'])]);
         }
 
-        // Simplistic approach for edit: update the current employment or create new if not exist
-        $employment = $user->currentEmployment;
-        if ($employment) {
-            $employment->update([
-                'nip' => $validated['nip'],
-                'principal_id' => $validated['principal_id'],
-                'position_id' => $validated['position_id'],
-                'department_id' => $validated['department_id'],
-                'start_date' => $validated['start_date'],
-            ]);
-        } else {
-            EmploymentHistory::create([
+        // Check Principal Change before modifying employment
+        $activePrincipal = \App\Models\PrincipalHistory::where('user_id', $user->id)
+            ->whereNull('end_date')
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        if (!$activePrincipal || $activePrincipal->principal_id != $validated['principal_id']) {
+            if ($activePrincipal) {
+                $activePrincipal->update(['end_date' => now()]);
+            }
+            \App\Models\PrincipalHistory::create([
                 'user_id' => $user->id,
-                'nip' => $validated['nip'],
                 'principal_id' => $validated['principal_id'],
-                'position_id' => $validated['position_id'],
-                'department_id' => $validated['department_id'],
-                'start_date' => $validated['start_date'],
-                'status' => 'ACTIVE',
-                'source' => 'MANUAL'
+                'start_date' => $validated['start_date']
             ]);
         }
+
+        // Close old employment and open new one if principal/position changes
+        $employment = $user->currentEmployment;
+        if ($employment) {
+            // Strictly speaking, if they change roles, we should close the old and open new instead of update
+            // We'll update for simplicity unless they changed NIP or Principal, but let's just create a new active history
+            $employment->update([
+                'status' => 'INACTIVE',
+                'end_date' => now()
+            ]);
+        }
+        
+        EmploymentHistory::create([
+            'user_id' => $user->id,
+            'nip' => $validated['nip'],
+            'principal_id' => $validated['principal_id'],
+            'position_id' => $validated['position_id'],
+            'department_id' => $validated['department_id'],
+            'start_date' => $validated['start_date'],
+            'status' => 'ACTIVE',
+            'source' => 'MANUAL'
+        ]);
 
         AssignmentEngine::evaluateUser($user);
         return redirect()->route('admin.users.index')->with('success', 'User updated successfully.');
     }
 }
+
