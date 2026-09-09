@@ -55,8 +55,8 @@ const lessonForm = useForm({
     material_type: 'YOUTUBE',
     video_url: '',
     content: '',
-    file: null,
-    duration_minutes: ''
+    file: null as File | null,
+    duration_minutes: '' as string | number
 });
 
 const openNewLessonForm = (module: any) => {
@@ -89,6 +89,13 @@ const openEditLessonForm = (module: any, lesson: any) => {
     lessonForm.file = null;
     lessonForm.duration_minutes = lesson.materials?.[0]?.duration ? Math.round(lesson.materials[0].duration / 60) : '';
     showLessonForm.value = true;
+};
+
+const handleFileUpload = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    if (target && target.files && target.files.length > 0) {
+        lessonForm.file = target.files[0];
+    }
 };
 
 const saveLesson = () => {
@@ -291,7 +298,7 @@ const deleteLesson = (module: any, lesson: any) => {
                                     <div class="sm:col-span-2" v-if="['VIDEO_UPLOAD', 'DOCUMENT_UPLOAD'].includes(lessonForm.material_type)">
                                         <label for="lesson-file" class="block text-sm font-medium leading-6 text-slate-900">Upload File (Max 100MB)</label>
                                         <div class="mt-2">
-                                            <input type="file" id="lesson-file" :accept="lessonForm.material_type === 'VIDEO_UPLOAD' ? 'video/mp4' : 'application/pdf'" @input="lessonForm.file = $event.target.files[0]" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-slate-300 rounded-md shadow-sm" />
+                                            <input type="file" id="lesson-file" :accept="lessonForm.material_type === 'VIDEO_UPLOAD' ? 'video/mp4' : 'application/pdf'" @change="handleFileUpload" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-slate-300 rounded-md shadow-sm" />
                                         </div>
                                         <p v-if="lessonForm.errors.file" class="mt-1 text-sm text-red-600">{{ lessonForm.errors.file }}</p>
                                     </div>
@@ -327,4 +334,6 @@ const deleteLesson = (module: any, lesson: any) => {
 
     </AdminLayout>
 </template>
+
+
 

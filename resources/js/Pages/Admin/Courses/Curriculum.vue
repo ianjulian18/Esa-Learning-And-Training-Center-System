@@ -14,13 +14,23 @@ const moduleForm = useForm({
 
 const lessonForm = useForm({
     title: '',
-    content_type: 'VIDEO',
-    content_url: '',
-    duration: '',
+    material_type: 'YOUTUBE',
+    video_url: '',
+    content: '',
+    file: null,
+    duration_minutes: '',
     order: 1
 });
 
+const handleFileUpload = (e) => {
+    const target = e.target;
+    if (target && target.files && target.files.length > 0) {
+        lessonForm.file = target.files[0];
+    }
+};
+
 const activeModuleId = ref(null);
+const editingLessonId = ref(null);
 
 const addModule = () => {
     moduleForm.order = (props.course.modules?.length || 0) + 1;
@@ -48,15 +58,51 @@ const saveAssessment = () => {
     });
 };
 
-const addLesson = (modId) => {
-    const mod = props.course.modules.find(m => m.id === modId);
-    lessonForm.order = (mod.lessons?.length || 0) + 1;
-    lessonForm.post(route('admin.modules.lessons.store', modId), {
-        onSuccess: () => {
-            lessonForm.reset();
-            activeModuleId.value = null;
-        }
-    });
+const editLesson = (modId, lesson) => {
+    activeModuleId.value = modId;
+    editingLessonId.value = lesson.id;
+    
+    let mType = 'YOUTUBE';
+    let vUrl = '';
+    let txtContent = '';
+    
+    if (lesson.materials && lesson.materials.length > 0) {
+        const mat = lesson.materials[0];
+        if (mat.type === 'VIDEO_UPLOAD') mType = 'VIDEO_UPLOAD';
+        else if (mat.type === 'DOCUMENT_UPLOAD') mType = 'DOCUMENT_UPLOAD';
+        else if (mat.type === 'TEXT') { mType = 'TEXT'; txtContent = mat.source_url; }
+        else { mType = 'YOUTUBE'; vUrl = mat.source_url; }
+    }
+
+    lessonForm.title = lesson.title;
+    lessonForm.material_type = mType;
+    lessonForm.video_url = vUrl;
+    lessonForm.content = txtContent;
+    lessonForm.file = null;
+    lessonForm.duration_minutes = lesson.materials?.[0]?.duration ? Math.round(lesson.materials[0].duration / 60) : '';
+};
+
+const cancelLessonForm = () => {
+    lessonForm.reset();
+    activeModuleId.value = null;
+    editingLessonId.value = null;
+};
+
+const saveLesson = (modId) => {
+    if (editingLessonId.value) {
+        lessonForm.transform((data) => ({
+            ...data,
+            _method: 'put',
+        })).post(route('admin.modules.lessons.update', [modId, editingLessonId.value]), {
+            onSuccess: () => cancelLessonForm()
+        });
+    } else {
+        const mod = props.course.modules.find(m => m.id === modId);
+        lessonForm.order = (mod.lessons?.length || 0) + 1;
+        lessonForm.post(route('admin.modules.lessons.store', modId), {
+            onSuccess: () => cancelLessonForm()
+        });
+    }
 };
 
 const deleteLesson = (modId, lessonId) => {
@@ -95,34 +141,51 @@ const deleteLesson = (modId, lessonId) => {
                                     <span>{{ lesson.order }}. {{ lesson.title }}</span>
                                     <span v-if="lesson.duration" class="text-gray-500 text-xs">({{ lesson.duration }} min)</span>
                                 </div>
-                                <button @click="deleteLesson(mod.id, lesson.id)" class="text-red-400 hover:text-red-600">x</button>
+                                <div>
+                                    <button @click="editLesson(mod.id, lesson)" class="text-indigo-400 hover:text-indigo-600 text-xs mr-3 font-semibold">Edit</button>
+                                    <button @click="deleteLesson(mod.id, lesson.id)" class="text-red-400 hover:text-red-600 font-bold">x</button>
+                                </div>
                             </div>
                             <div v-if="!mod.lessons || mod.lessons.length === 0" class="text-sm text-gray-400 italic">No lessons yet.</div>
                         </div>
 
-                        <!-- Add Lesson Form -->
-                        <div v-if="activeModuleId === mod.id" class="mt-4 bg-gray-100 p-4 rounded-md">
-                            <h4 class="text-sm font-semibold mb-2">New Lesson for Module: {{ mod.title }}</h4>
-                            <form @submit.prevent="addLesson(mod.id)" class="grid grid-cols-2 gap-2 text-sm">
-                                <div>
+                        <!-- Add/Edit Lesson Form -->
+                        <div v-if="activeModuleId === mod.id" class="mt-4 bg-gray-100 p-4 rounded-md border border-indigo-200">
+                            <h4 class="text-sm font-semibold mb-2 text-indigo-900">{{ editingLessonId ? 'Edit Lesson' : 'New Lesson' }}</h4>
+                            <form @submit.prevent="saveLesson(mod.id)" class="grid grid-cols-2 gap-2 text-sm">
+                                <div class="col-span-2">
                                     <label>Title</label>
                                     <input v-model="lessonForm.title" type="text" required class="w-full rounded border-gray-300">
                                 </div>
-                                <div>
-                                    <label>Type</label>
-                                    <select v-model="lessonForm.content_type" class="w-full rounded border-gray-300">
-                                        <option value="VIDEO">Video</option>
-                                        <option value="DOCUMENT">Document (PDF)</option>
+                                <div class="col-span-2">
+                                    <label>Material Type</label>
+                                    <select v-model="lessonForm.material_type" class="w-full rounded border-gray-300">
+                                        <option value="YOUTUBE">YouTube Video Link</option>
+                                        <option value="VIDEO_UPLOAD">Upload MP4 Video</option>
+                                        <option value="DOCUMENT_UPLOAD">Upload PDF Document</option>
                                         <option value="TEXT">Text/Article</option>
                                     </select>
                                 </div>
-                                <div class="col-span-2">
-                                    <label>Content URL</label>
-                                    <input v-model="lessonForm.content_url" type="text" class="w-full rounded border-gray-300" placeholder="https://youtube.com/...">
+                                <div class="col-span-2" v-if="lessonForm.material_type === 'YOUTUBE'">
+                                    <label>YouTube URL</label>
+                                    <input v-model="lessonForm.video_url" type="url" class="w-full rounded border-gray-300">
+                                </div>
+                                <div class="col-span-2" v-if="['VIDEO_UPLOAD', 'DOCUMENT_UPLOAD'].includes(lessonForm.material_type)">
+                                    <label>Upload File (Max 100MB)</label>
+                                    <input type="file" :accept="lessonForm.material_type === 'VIDEO_UPLOAD' ? 'video/mp4' : 'application/pdf'" @change="handleFileUpload" class="w-full rounded border-gray-300 p-1 bg-white">
+                                    <p v-if="lessonForm.errors.file" class="text-xs text-red-500 mt-1">{{ lessonForm.errors.file }}</p>
+                                </div>
+                                <div class="col-span-2" v-if="['YOUTUBE', 'VIDEO_UPLOAD'].includes(lessonForm.material_type)">
+                                    <label>Duration (Minutes)</label>
+                                    <input v-model="lessonForm.duration_minutes" type="number" class="w-full rounded border-gray-300">
+                                </div>
+                                <div class="col-span-2" v-if="lessonForm.material_type === 'TEXT'">
+                                    <label>Content (Markdown/Text)</label>
+                                    <textarea v-model="lessonForm.content" rows="4" class="w-full rounded border-gray-300"></textarea>
                                 </div>
                                 <div class="col-span-2 flex justify-end gap-2 mt-2">
-                                    <button type="button" @click="activeModuleId = null" class="px-3 py-1 bg-gray-300 rounded">Cancel</button>
-                                    <button type="submit" class="px-3 py-1 bg-indigo-600 text-white rounded">Save Lesson</button>
+                                    <button type="button" @click="cancelLessonForm" class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                                    <button type="submit" :disabled="lessonForm.processing" class="px-3 py-1 bg-indigo-600 text-white rounded">Save Lesson</button>
                                 </div>
                             </form>
                         </div>
@@ -180,4 +243,7 @@ const deleteLesson = (modId, lessonId) => {
         </div>
     </AdminLayout>
 </template>
+
+
+
 

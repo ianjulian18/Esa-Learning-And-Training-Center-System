@@ -64,8 +64,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('imports/update-batch', [ImportController::class, 'storeUpdate'])->name('imports.storeUpdate');
         Route::resource('imports', ImportController::class)->only(['index']);
         Route::post('courses/{course}/modules', [ModuleController::class, 'store'])->name('courses.modules.store');
+        Route::put('courses/{course}/modules/{module}', [ModuleController::class, 'update'])->name('courses.modules.update');
         Route::delete('courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('courses.modules.destroy');
         Route::post('modules/{module}/lessons', [LessonController::class, 'store'])->name('modules.lessons.store');
+        Route::put('modules/{module}/lessons/{lesson}', [LessonController::class, 'update'])->name('modules.lessons.update');
         Route::delete('modules/{module}/lessons/{lesson}', [LessonController::class, 'destroy'])->name('modules.lessons.destroy');
     });
 
@@ -80,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
 
 
 
