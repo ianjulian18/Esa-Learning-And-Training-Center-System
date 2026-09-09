@@ -5,5 +5,6 @@ class Lesson extends Model
 {
     protected $guarded = [];
     public function module() { return $this->belongsTo(Module::class); }
-    public function materials() { return $this->hasMany(LessonMaterial::class)->orderBy('order'); }
+    public function materials() { return $this->hasMany(LessonMaterial::class); }
 }
+
