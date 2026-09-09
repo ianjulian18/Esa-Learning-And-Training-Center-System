@@ -108,25 +108,33 @@ const markComplete = async () => {
                 <!-- Main Content Area -->
                 <div class="flex-1 bg-white shadow sm:rounded-lg overflow-hidden flex flex-col">
                     <div v-if="activeLesson" class="flex-1 bg-black flex items-center justify-center relative">
-                        <div v-if="activeLesson.content_type === 'VIDEO'" class="w-full h-full">
-                            <iframe v-if="activeLesson.content_url" :src="activeLesson.content_url" class="w-full h-full border-0" allowfullscreen></iframe>
+                        <div v-if="activeLesson.materials?.[0]?.type === 'VIDEO_UPLOAD'" class="w-full h-full">
+                            <video controls class="w-full h-full bg-black">
+                                <source :src="activeLesson.materials[0].source_url" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                        <div v-else-if="activeLesson.materials?.[0]?.type === 'VIDEO'" class="w-full h-full">
+                            <iframe v-if="activeLesson.materials[0].source_url" :src="activeLesson.materials[0].source_url" class="w-full h-full border-0" allowfullscreen></iframe>
                             <div v-else class="text-white text-center p-8">No Video URL provided</div>
                         </div>
-                        <div v-else-if="activeLesson.content_type === 'DOCUMENT'" class="w-full h-full bg-gray-200">
-                             <iframe v-if="activeLesson.content_url" :src="activeLesson.content_url" class="w-full h-full border-0"></iframe>
+                        <div v-else-if="['DOCUMENT', 'DOCUMENT_UPLOAD'].includes(activeLesson.materials?.[0]?.type)" class="w-full h-full bg-gray-200">
+                             <iframe v-if="activeLesson.materials[0].source_url" :src="activeLesson.materials[0].source_url" class="w-full h-full border-0"></iframe>
                              <div v-else class="text-gray-500 text-center p-8">No Document URL provided</div>
                         </div>
-                        <div v-else class="w-full h-full bg-white p-8 overflow-y-auto prose max-w-none">
+                        <div v-else-if="activeLesson.materials?.[0]?.type === 'TEXT'" class="w-full h-full bg-white p-8 overflow-y-auto prose max-w-none">
                             <h2 class="text-2xl font-bold mb-4">{{ activeLesson.title }}</h2>
-                            <p>Read the text content. (Placeholder for rich text)</p>
-                            <a :href="activeLesson.content_url" target="_blank" v-if="activeLesson.content_url" class="text-indigo-600 underline">External Link</a>
+                            <div class="whitespace-pre-wrap">{{ activeLesson.materials[0].source_url }}</div>
+                        </div>
+                        <div v-else class="w-full h-full bg-white flex items-center justify-center text-gray-500">
+                            No content available for this lesson.
                         </div>
                     </div>
                     
                     <div v-if="activeLesson" class="p-6 border-t border-gray-200 flex justify-between items-center bg-gray-50">
                         <div>
                             <h3 class="font-bold text-lg">{{ activeLesson.title }}</h3>
-                            <p class="text-sm text-gray-500">{{ activeLesson.content_type }}</p>
+                            <p class="text-sm text-gray-500">{{ activeLesson.materials?.[0]?.type || 'UNKNOWN' }}</p>
                         </div>
                         <div>
                             <button v-if="!isCompleted(activeLesson.id)" @click="markComplete" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-medium">Mark Complete</button>
@@ -185,5 +193,6 @@ const markComplete = async () => {
         </div>
     </LearnerLayout>
 </template>
+
 
 

@@ -52,8 +52,10 @@ const activeModuleForLesson = ref<any>(null);
 const editingLesson = ref<any>(null);
 const lessonForm = useForm({
     title: '',
-    content: '',
+    material_type: 'YOUTUBE',
     video_url: '',
+    content: '',
+    file: null,
     duration_minutes: ''
 });
 
@@ -67,10 +69,25 @@ const openNewLessonForm = (module: any) => {
 const openEditLessonForm = (module: any, lesson: any) => {
     activeModuleForLesson.value = module;
     editingLesson.value = lesson;
+    
+    let mType = 'YOUTUBE';
+    let vUrl = '';
+    let txtContent = '';
+    
+    if (lesson.materials && lesson.materials.length > 0) {
+        const mat = lesson.materials[0];
+        if (mat.type === 'VIDEO_UPLOAD') mType = 'VIDEO_UPLOAD';
+        else if (mat.type === 'DOCUMENT_UPLOAD') mType = 'DOCUMENT_UPLOAD';
+        else if (mat.type === 'TEXT') { mType = 'TEXT'; txtContent = mat.source_url; }
+        else { mType = 'YOUTUBE'; vUrl = mat.source_url; }
+    }
+
     lessonForm.title = lesson.title;
-    lessonForm.content = lesson.content || '';
-    lessonForm.video_url = lesson.video_url || '';
-    lessonForm.duration_minutes = lesson.duration_minutes || '';
+    lessonForm.material_type = mType;
+    lessonForm.video_url = vUrl;
+    lessonForm.content = txtContent;
+    lessonForm.file = null;
+    lessonForm.duration_minutes = lesson.materials?.[0]?.duration ? Math.round(lesson.materials[0].duration / 60) : '';
     showLessonForm.value = true;
 };
 
@@ -255,18 +272,38 @@ const deleteLesson = (module: any, lesson: any) => {
                                         </div>
                                     </div>
                                     <div class="sm:col-span-2">
-                                        <label for="lesson-video" class="block text-sm font-medium leading-6 text-slate-900">Video URL (YouTube/MP4)</label>
+                                        <label class="block text-sm font-medium leading-6 text-slate-900">Material Type</label>
+                                        <select v-model="lessonForm.material_type" class="mt-2 block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6">
+                                            <option value="YOUTUBE">YouTube Video Link</option>
+                                            <option value="VIDEO_UPLOAD">Upload MP4 Video</option>
+                                            <option value="DOCUMENT_UPLOAD">Upload PDF Document</option>
+                                            <option value="TEXT">Text / Article (Markdown)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="sm:col-span-2" v-if="lessonForm.material_type === 'YOUTUBE'">
+                                        <label for="lesson-video" class="block text-sm font-medium leading-6 text-slate-900">YouTube URL</label>
                                         <div class="mt-2">
                                             <input type="url" id="lesson-video" v-model="lessonForm.video_url" class="block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6" />
                                         </div>
                                     </div>
-                                    <div>
+
+                                    <div class="sm:col-span-2" v-if="['VIDEO_UPLOAD', 'DOCUMENT_UPLOAD'].includes(lessonForm.material_type)">
+                                        <label for="lesson-file" class="block text-sm font-medium leading-6 text-slate-900">Upload File (Max 100MB)</label>
+                                        <div class="mt-2">
+                                            <input type="file" id="lesson-file" :accept="lessonForm.material_type === 'VIDEO_UPLOAD' ? 'video/mp4' : 'application/pdf'" @input="lessonForm.file = $event.target.files[0]" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-slate-300 rounded-md shadow-sm" />
+                                        </div>
+                                        <p v-if="lessonForm.errors.file" class="mt-1 text-sm text-red-600">{{ lessonForm.errors.file }}</p>
+                                    </div>
+
+                                    <div v-if="['YOUTUBE', 'VIDEO_UPLOAD'].includes(lessonForm.material_type)">
                                         <label for="lesson-duration" class="block text-sm font-medium leading-6 text-slate-900">Duration (Minutes)</label>
                                         <div class="mt-2">
                                             <input type="number" id="lesson-duration" v-model="lessonForm.duration_minutes" class="block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6" />
                                         </div>
                                     </div>
-                                    <div class="sm:col-span-2">
+
+                                    <div class="sm:col-span-2" v-if="lessonForm.material_type === 'TEXT'">
                                         <label for="lesson-content" class="block text-sm font-medium leading-6 text-slate-900">Content (Markdown/Text)</label>
                                         <div class="mt-2">
                                             <textarea id="lesson-content" v-model="lessonForm.content" rows="6" class="block w-full rounded-md border-0 py-1.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6"></textarea>
@@ -290,3 +327,4 @@ const deleteLesson = (module: any, lesson: any) => {
 
     </AdminLayout>
 </template>
+
