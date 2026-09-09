@@ -18,27 +18,28 @@ class RegionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:Regions,code',
+            'code' => 'required|string|max:50|unique:regions,code',
             'name' => 'required|string|max:255',
         ]);
         Region::create($validated);
         return redirect()->back()->with('success', 'Region created successfully.');
     }
 
-    public function update(Request $request, Region $Region)
+    public function update(Request $request, Region $region)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:Regions,code,' . $Region->id,
+            'code' => 'required|string|max:50|unique:regions,code,' . $region->id,
             'name' => 'required|string|max:255',
         ]);
-        $Region->update($validated);
+        $region->update($validated);
         return redirect()->back()->with('success', 'Region updated successfully.');
     }
 
-    public function destroy(Region $Region)
+    public function destroy(Region $region)
     {
-        $Region->delete();
+        $region->delete();
         return redirect()->back()->with('success', 'Region deleted successfully.');
     }
 }
+
 

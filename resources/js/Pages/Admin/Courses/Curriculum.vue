@@ -35,7 +35,11 @@ const editingLessonId = ref(null);
 const addModule = () => {
     moduleForm.order = (props.course.modules?.length || 0) + 1;
     moduleForm.post(route('admin.courses.modules.store', props.course.id), {
-        onSuccess: () => moduleForm.reset()
+        preserveScroll: true,
+        onSuccess: () => {
+            moduleForm.reset();
+            alert('Module added successfully!');
+        }
     });
 };
 
@@ -100,7 +104,11 @@ const saveLesson = (modId) => {
         const mod = props.course.modules.find(m => m.id === modId);
         lessonForm.order = (mod.lessons?.length || 0) + 1;
         lessonForm.post(route('admin.modules.lessons.store', modId), {
-            onSuccess: () => cancelLessonForm()
+            preserveScroll: true,
+            onSuccess: () => {
+                cancelLessonForm();
+                alert('Lesson added successfully!');
+            }
         });
     }
 };
@@ -243,6 +251,7 @@ const deleteLesson = (modId, lessonId) => {
         </div>
     </AdminLayout>
 </template>
+
 
 
 

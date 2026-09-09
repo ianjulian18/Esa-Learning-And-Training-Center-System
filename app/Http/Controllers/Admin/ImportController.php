@@ -41,7 +41,7 @@ class ImportController extends Controller
             $filePath = $request->file('file')->getRealPath();
         } else {
             $request->validate(['file_id' => 'required|string']);
-            $filePath = storage_path('app/imports_temp/' . $request->file_id . '.csv');
+            $filePath = Storage::path('imports_temp/' . $request->file_id . '.csv');
             if (!file_exists($filePath)) {
                 throw new \Exception('Temporary file not found. Please re-upload.');
             }
@@ -343,3 +343,4 @@ class ImportController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 }
+

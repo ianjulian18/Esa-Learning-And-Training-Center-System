@@ -11,14 +11,14 @@ class PrincipalController extends Controller
     public function index()
     {
         return Inertia::render('Admin/Principals/Index', [
-            'principals' => Principal::latest()->get()
+            'principals' => Principal::with('entity')->latest()->get(), 'entities' => \App\Models\Entity::orderBy('name')->get()
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:principals,code',
+            'entity_id' => 'required|exists:entities,id', 'code' => 'required|string|max:50|unique:principals,code',
             'name' => 'required|string|max:255',
         ]);
         Principal::create($validated);
@@ -28,7 +28,7 @@ class PrincipalController extends Controller
     public function update(Request $request, Principal $principal)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:50|unique:principals,code,' . $principal->id,
+            'entity_id' => 'required|exists:entities,id', 'code' => 'required|string|max:50|unique:principals,code,' . $principal->id,
             'name' => 'required|string|max:255',
         ]);
         $principal->update($validated);
@@ -41,3 +41,6 @@ class PrincipalController extends Controller
         return redirect()->back()->with('success', 'Principal deleted successfully.');
     }
 }
+
+
+
