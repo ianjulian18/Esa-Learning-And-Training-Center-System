@@ -21,6 +21,16 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'isAdminLogin' => false,
+        ]);
+    }
+
+    public function createAdmin(): Response
+    {
+        return Inertia::render('Auth/Login', [
+            'canResetPassword' => Route::has('password.request'),
+            'status' => session('status'),
+            'isAdminLogin' => true,
         ]);
     }
 
@@ -50,3 +60,4 @@ class AuthenticatedSessionController extends Controller
         return redirect('/');
     }
 }
+

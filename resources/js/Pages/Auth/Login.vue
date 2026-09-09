@@ -10,6 +10,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 defineProps<{
     canResetPassword?: boolean;
     status?: string;
+    isAdminLogin?: boolean;
 }>();
 
 const form = useForm({
@@ -28,7 +29,7 @@ const submit = () => {
 </script>
 
 <template>
-    <GuestLayout>
+    <GuestLayout :isAdminLogin="isAdminLogin">
         <Head title="Log in" />
 
         <div v-if="status" class="mb-4 text-sm font-medium text-green-600">
@@ -37,12 +38,12 @@ const submit = () => {
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="login_id" value="Email / NIK / NIP" />
+                <InputLabel for="login_id" value="Email / NIK / NIP" :class="{'text-gray-300': isAdminLogin}" />
 
                 <TextInput
                     id="login_id"
                     type="text"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full" :class="{'bg-slate-700 border-slate-600 text-white focus:border-indigo-500 focus:ring-indigo-500': isAdminLogin}"
                     v-model="form.login_id"
                     required
                     autofocus
@@ -53,12 +54,12 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+                <InputLabel for="password" value="Password" :class="{'text-gray-300': isAdminLogin}" />
 
                 <TextInput
                     id="password"
                     type="password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full" :class="{'bg-slate-700 border-slate-600 text-white focus:border-indigo-500 focus:ring-indigo-500': isAdminLogin}"
                     v-model="form.password"
                     required
                     autocomplete="current-password"
@@ -70,7 +71,7 @@ const submit = () => {
             <div class="mt-4 block">
                 <label class="flex items-center">
                     <Checkbox name="remember" v-model:checked="form.remember" />
-                    <span class="ms-2 text-sm text-gray-600 dark:text-gray-400"
+                    <span class="ms-2 text-sm" :class="{'text-gray-400': isAdminLogin, 'text-gray-600 dark:text-gray-400': !isAdminLogin}"
                         >Remember me</span
                     >
                 </label>
@@ -96,6 +97,7 @@ const submit = () => {
         </form>
     </GuestLayout>
 </template>
+
 
 
 

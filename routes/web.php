@@ -20,9 +20,7 @@ use App\Http\Controllers\Admin\PrincipalController;
 use App\Http\Controllers\Admin\PositionController;
 use App\Http\Controllers\Admin\DepartmentController;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Redirection based on roles
@@ -82,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
 
 
 

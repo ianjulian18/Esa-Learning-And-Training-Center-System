@@ -2,9 +2,17 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
+import { router } from '@inertiajs/vue3';
+
 const props = defineProps({
     users: Array
 });
+
+const deleteUser = (user) => {
+    if (confirm(`Are you sure you want to delete user ${user.name} (${user.nik})? This action cannot be undone.`)) {
+        router.delete(route('admin.users.destroy', user.id));
+    }
+};
 </script>
 
 <template>
@@ -48,7 +56,8 @@ const props = defineProps({
                                     <div v-else class="text-yellow-600 italic">No Active Employment</div>
                                 </td>
                                 <td class="px-6 py-4 text-right text-sm font-medium">
-                                    <Link :href="route('admin.users.edit', user.id)" class="text-indigo-600 hover:text-indigo-900">Manage</Link>
+                                    <Link :href="route('admin.users.edit', user.id)" class="text-indigo-600 hover:text-indigo-900 mr-4">Manage</Link>
+                                    <button @click="deleteUser(user)" class="text-red-500 hover:text-red-700 font-medium">Delete</button>
                                 </td>
                             </tr>
                             <tr v-if="users.length === 0">
@@ -61,3 +70,5 @@ const props = defineProps({
         </div>
     </AdminLayout>
 </template>
+
+
