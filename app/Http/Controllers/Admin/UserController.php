@@ -39,7 +39,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function store(Request )
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'nik' => 'required|string|unique:users',
@@ -221,3 +221,4 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully.');
     }
 }
+
